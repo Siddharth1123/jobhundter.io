@@ -1,0 +1,66 @@
+# Zerops deployment configuration for CareerPilot AI
+# Zerops project configuration containing frontend, api, worker, and postgresql database.
+
+project:
+  name: careerpilot-ai
+
+services:
+  - setup: db
+    type: postgresql@16
+    mode: HA
+    initCommands:
+      - psql -U ${ZEROPS_DB_USER} -d ${ZEROPS_DB_NAME} -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+
+  - setup: api
+    type: python@3.11
+    build:
+      base: python@3.11
+      buildCommands:
+        - cd backend && pip install --upgrade pip && pip install -r requirements.txt
+      deployFiles:
+        - backend/app
+        - backend/requirements.txt
+        - backend/alembic.ini
+        - backend/alembic
+    run:
+      base: python@3.11
+      start: cd backend && uvicorn app.main:app --host 0.0.0.0 --port 8000
+      envVariables:
+        PORT: 8000
+        DATABASE_URL: postgresql+asyncpg://${db_user}:${db_password}@${db_hostname}:${db_port}/${db_name}
+        CORS_ORIGINS: "*"
+
+  - setup: worker
+    type: python@3.11
+    build:
+      base: python@3.11
+      buildCommands:
+        - cd worker && pip install --upgrade pip && pip install -r requirements.txt
+      deployFiles:
+        - worker/worker.py
+        - worker/jobs
+        - worker/requirements.txt
+    run:
+      base: python@3.11
+      start: cd worker && python worker.py
+      envVariables:
+        DATABASE_URL: postgresql+asyncpg://${db_user}:${db_password}@${db_hostname}:${db_port}/${db_name}
+
+  - setup: frontend
+    type: nodejs@20
+    build:
+      base: nodejs@20
+      buildCommands:
+        - cd frontend && npm ci && npm run build
+      deployFiles:
+        - frontend/.next
+        - frontend/public
+        - frontend/package.json
+        - frontend/node_modules
+        - frontend/next.config.js
+    run:
+      base: nodejs@20
+      start: cd frontend && npm start
+      envVariables:
+        PORT: 3000
+        NEXT_PUBLIC_API_URL: http://api:8000
