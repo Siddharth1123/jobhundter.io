@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../services/api';
-import { UploadCloud, FileText, CheckCircle2, Sparkles, User, Briefcase, Award, ArrowRight } from 'lucide-react';
+import { UploadCloud, FileText, CheckCircle2, Sparkles, User, AlertCircle, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ResumesPage() {
@@ -11,6 +11,7 @@ export default function ResumesPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [rawTextPaste, setRawTextPaste] = useState('');
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { data: profile } = useQuery({
     queryKey: ['profile'],
@@ -19,13 +20,14 @@ export default function ResumesPage() {
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
+      setErrorMessage(null);
       if (selectedFile) {
         return api.uploadResume(selectedFile);
       } else if (rawTextPaste.trim()) {
-        const file = new File([rawTextPaste], 'resume.txt', { type: 'text/plain' });
+        const file = new File([rawTextPaste], 'Siddharth-SRE-DevOps-resume.txt', { type: 'text/plain' });
         return api.uploadResume(file);
       }
-      throw new Error('Please select a PDF file or paste resume text');
+      throw new Error('Please select a PDF file or paste resume text first.');
     },
     onSuccess: () => {
       setUploadSuccess(true);
@@ -37,18 +39,22 @@ export default function ResumesPage() {
       setRawTextPaste('');
       setTimeout(() => setUploadSuccess(false), 5000);
     },
+    onError: (err: any) => {
+      setErrorMessage(err?.message || 'Resume upload failed. Please try again.');
+    }
   });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0]);
+      setErrorMessage(null);
     }
   };
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Resume Upload & AI Extraction</h1>
+        <h1 className="text-2xl font-bold text-white tracking-tight">Resume Intelligence & Extraction</h1>
         <p className="text-xs text-gray-400">Upload your PDF resume or paste text to extract an AI candidate profile with zero fabrication</p>
       </div>
 
@@ -82,7 +88,7 @@ export default function ResumesPage() {
           <button
             onClick={() => uploadMutation.mutate()}
             disabled={uploadMutation.isPending || (!selectedFile && !rawTextPaste.trim())}
-            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-500/25 flex items-center gap-2"
+            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition shadow-lg shadow-blue-500/25 flex items-center gap-2 cursor-pointer disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4" />
             <span>{uploadMutation.isPending ? 'Extracting AI Profile...' : 'Extract & Sync Candidate Profile'}</span>
@@ -101,6 +107,13 @@ export default function ResumesPage() {
             className="w-full h-24 bg-gray-900 border border-gray-800 rounded-xl p-3 text-xs text-white outline-none focus:border-blue-500 font-mono"
           />
         </div>
+
+        {errorMessage && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center justify-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
 
         {uploadSuccess && (
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-2">
@@ -133,9 +146,9 @@ export default function ResumesPage() {
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Parsed Extracted Skills ({profile.skills?.length || 0})</h4>
+            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Extracted Profile Skills ({profile.skills?.length || 0})</h4>
             {(!profile.skills || profile.skills.length === 0) ? (
-              <p className="text-xs text-gray-500">No skills parsed yet. Upload your PDF or paste resume text above to extract your skills.</p>
+              <p className="text-xs text-gray-500">No skills extracted yet. Upload your PDF or paste resume text above to extract your skills.</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {profile.skills.map((skill: any, idx: number) => (

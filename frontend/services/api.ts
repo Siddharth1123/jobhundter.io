@@ -4,10 +4,16 @@ import {
   TailorResumeResponse, OutreachResponse, ApplicationStage
 } from '../types';
 
-const API_BASE_URL = typeof window !== 'undefined' ? '/api/v1' : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1');
+const getApiBaseUrl = () => {
+  if (typeof window !== 'undefined') {
+    return '/api/v1';
+  }
+  return process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+};
 
 async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const baseUrl = getApiBaseUrl();
+  const res = await fetch(`${baseUrl}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
@@ -16,7 +22,8 @@ async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T>
   });
 
   if (!res.ok) {
-    throw new Error(`API error ${res.status}: ${await res.text()}`);
+    const errText = await res.text();
+    throw new Error(`API error ${res.status}: ${errText}`);
   }
   return res.json();
 }
@@ -28,13 +35,17 @@ export const api = {
     fetchJSON<CandidateProfile>('/profile', { method: 'PUT', body: JSON.stringify(data) }),
 
   uploadResume: async (file: File) => {
+    const baseUrl = getApiBaseUrl();
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`${API_BASE_URL}/resumes/upload`, {
+    const res = await fetch(`${baseUrl}/resumes/upload`, {
       method: 'POST',
       body: formData,
     });
-    if (!res.ok) throw new Error('Resume upload failed');
+    if (!res.ok) {
+      const errorMsg = await res.text();
+      throw new Error(`Upload failed (${res.status}): ${errorMsg}`);
+    }
     return res.json();
   },
 
