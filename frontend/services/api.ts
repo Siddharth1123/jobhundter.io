@@ -4,7 +4,7 @@ import {
   TailorResumeResponse, OutreachResponse, ApplicationStage
 } from '../types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = typeof window !== 'undefined' ? '/api/v1' : (process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1');
 
 async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -22,15 +22,11 @@ async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T>
 }
 
 export const api = {
-  // Health
   getHealth: () => fetchJSON<{ status: string }>('/health'),
-
-  // Profile
   getProfile: () => fetchJSON<CandidateProfile>('/profile'),
   updateProfile: (data: Partial<CandidateProfile>) =>
     fetchJSON<CandidateProfile>('/profile', { method: 'PUT', body: JSON.stringify(data) }),
 
-  // Resumes
   uploadResume: async (file: File) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -42,7 +38,6 @@ export const api = {
     return res.json();
   },
 
-  // Jobs & Matches
   getJobs: (query?: string, location?: string) => {
     const params = new URLSearchParams();
     if (query) params.append('q', query);
@@ -50,10 +45,13 @@ export const api = {
     return fetchJSON<Job[]>(`/jobs?${params.toString()}`);
   },
   getJob: (id: string) => fetchJSON<Job>(`/jobs/${id}`),
+  importJobFromUrl: (url: string) => fetchJSON<{ job: Job; match: JobMatch }>('/jobs/import-url', {
+    method: 'POST',
+    body: JSON.stringify({ url })
+  }),
   matchJob: (id: string) => fetchJSON<JobMatch>(`/jobs/${id}/match`, { method: 'POST' }),
   getMatches: () => fetchJSON<JobMatch[]>('/matches'),
 
-  // Applications CRM
   getApplications: (stage?: string) =>
     fetchJSON<Application[]>(`/applications${stage ? `?stage=${stage}` : ''}`),
   getApplication: (id: string) => fetchJSON<Application>(`/applications/${id}`),
@@ -68,7 +66,6 @@ export const api = {
       body: JSON.stringify({ stage })
     }),
 
-  // Activities & Notes
   createActivity: (appId: string, activityType: string, title: string, description?: string) =>
     fetchJSON<Activity>(`/applications/${appId}/activities`, {
       method: 'POST',
@@ -83,7 +80,6 @@ export const api = {
     }),
   getNotes: (appId: string) => fetchJSON<Note[]>(`/applications/${appId}/notes`),
 
-  // Interviews
   createInterview: (appId: string, roundName: string, scheduledAt: string, interviewerName?: string, notes?: string) =>
     fetchJSON<Interview>(`/applications/${appId}/interviews`, {
       method: 'POST',
@@ -97,7 +93,6 @@ export const api = {
     }),
   getInterviews: () => fetchJSON<Interview[]>('/interviews'),
 
-  // AI Tools
   tailorResume: (jobId: string) =>
     fetchJSON<TailorResumeResponse>('/ai/tailor-resume', {
       method: 'POST',
@@ -114,6 +109,5 @@ export const api = {
       body: JSON.stringify({ message, job_id: jobId })
     }),
 
-  // Dashboard
   getDashboardMetrics: () => fetchJSON<DashboardMetrics>('/dashboard')
 };
